@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Basic Example</title>
+</head>
+<body>
+    <canvas width="400" height="400"></canvas>
+    <script src="../dist/web-graphic-intercepter.js"></script>
+    <script src="lib/claygl.min.js"></script>
+
+    <script>
+        const canvas = document.querySelector('canvas');
+        wgi.init({
+            createImage: wgi.DEFAULT_CREATE_IMAGE,
+            createVideo: wgi.DEFAULT_CREATE_VIDEO
+        });
+        const {recorder} = wgi.intercept(canvas);
+        recorder.start();
+
+        clay.application.create(canvas, {
+            init(app) {
+                this._camera = app.createCamera([0, 2, 5], [0, 0, 0]);
+                this._cube = app.createCube({
+                    color: '#f00'
+                });
+                this._mainLight = app.createDirectionalLight([-1, -1, -1]);
+            },
+            loop(app) {
+                this._cube.rotation.rotateY(app.frameTime / 1000);
+            }
+        });
+    </script>
+</body>
+</html>
