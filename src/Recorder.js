@@ -89,6 +89,8 @@ class Recorder {
      */
     start() {
         this._recording = true;
+        // PENDING Performance implementation?
+        this._startTime = performance.now();
     }
     /**
      * Stop recording
@@ -103,28 +105,34 @@ class Recorder {
      * @param {Array} args
      * @return byteOffset, -1 if buffer has no space.
      */
-    addCommand(commandName, args) {
+    addCommand(commandName, args, execTime) {
         if (!this._recording) {
             return;
         }
-        const packer = this._cuurentDataPacker;
+        const packer = this._curentDataPacker;
 
         const startByteOffset = packer.byteOffset;
         let endByteOffset = startByteOffset;
 
         const commandSpec = this._getCommandSpec(commandName, args);
-
+        // |-int16-|-int16-|---float---|---float---|
+        // |  id   | bytes | timestamp | time cost |
         endByteOffset = packer.pack('short', commandSpec.id);
         endByteOffset = packer.pack('short', 0);
+        endByteOffset = packer.pack('float', performance.now() - this._startTime);
+        endByteOffset = packer.pack('float', execTime);
+
 
         for (let i = 0; i < args.length; i++) {
             const argSpec = commandSpec.args[i];
             const value = args[i];
 
-            if (argSpec.packType) { // Pack type
+            if (argSpec.packType) {
+                // Data can be packed into buffer
+                // Like number, string, color, TypedArray
                 endByteOffset = packer.pack(argSpec.packType, value);
             }
-            else {  // WebGL Object type.
+            else {  // Otherwise, WebGL/Context2D Object type.
                 if (value == null) {
                     endByteOffset = packer.pack('int', -1);
                 }
@@ -136,19 +144,25 @@ class Recorder {
                 }
             }
         }
-        if (endByteOffset < -1) {
-            this._cuurentDataPacker.end();
+        if (endByteOffset < -1) {   // Not enough space. Create a new buffer and repack the command.
+            this._curentDataPacker.end();
             this._createPacker();
             this.addCommand(commandName, args);
             return;
         }
 
-        // Arg length.
-        packer.dataView.setUint16(startByteOffset + 2, endByteOffset - startByteOffset - 4);
+        // Arg bytes.
+        // PENDING shader string too long?
+        packer.dataView.setUint16(
+            startByteOffset + 2, endByteOffset - startByteOffset - 12
+        );
     }
 
     commit() {
-
+        const commandBuffers = this._commandsBuffers;
+        this._commandsBuffers = [];
+        this._createPacker();
+        return commandBuffers;
     }
 
     addShot() {
@@ -165,15 +179,15 @@ class Recorder {
                 return methodSpec[i];
             }
         }
-        for (let i = 0; i < methodSpec.length; i++) {
-            compareArgTypes(methodSpec[i].args, args);
-        }
+        // for (let i = 0; i < methodSpec.length; i++) {
+        //     compareArgTypes(methodSpec[i].args, args);
+        // }
     }
 
     _createPacker() {
         const buffer = new ArrayBuffer(COMMAND_BUFFER_SIZE);
         this._commandsBuffers.push(buffer);
-        this._cuurentDataPacker = new DataPacker(buffer);
+        this._curentDataPacker = new DataPacker(buffer);
 
         this._byteOffset = 0;
     }

@@ -6,6 +6,10 @@ import Context2DProxy from './Context2DProxy';
 import {ensureNativeObjectTypeInfo} from './nativeObjectTypeInfo';
 import Recorder from './Recorder';
 
+import Replay from './Replay';
+import webglSpec from './spec/webgl';
+import canvasSpec from './spec/canvas';
+
 export function intercept(canvas) {
     ensureNativeObjectTypeInfo(canvas, 'HTMLCanvasElement');
 
@@ -47,6 +51,14 @@ export function init({
     }
     createImage && ensureNativeObjectTypeInfo(createImage(), 'HTMLCanvasElement');
     createVideo && ensureNativeObjectTypeInfo(createVideo(), 'HTMLVideoElement');
+}
+
+export function createWebGLReplay() {
+    return new Replay(webglSpec);
+}
+
+export function create2DReplay() {
+    return new Replay(canvasSpec);
 }
 
 export function DEFAULT_CREATE_IMAGE() {

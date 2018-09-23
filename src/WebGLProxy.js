@@ -51,13 +51,16 @@ webglSpec.methods.forEach(methodSpec => {
 
     WebGLProxy.prototype[methodSpec.name] = function (...args) {
         const ctx = this._$rawContext;
+
+        const start = performance.now();
+        const ret = ctx[methodSpec.name].apply(ctx, args);
+        let execTime = performance.now() - start;
+
         // Ignore getter commands
         if (!isGetter) {
             const recorder = this._$recorder;
-            recorder.addCommand(methodSpec.name, args);
+            recorder.addCommand(methodSpec.name, args, execTime);
         }
-
-        const ret = ctx[methodSpec.name].apply(ctx, args);
 
         if (retObjectType) {
             if (ret) {

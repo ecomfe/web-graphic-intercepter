@@ -2,12 +2,11 @@
  * @file Pack command data in a binary buffer.
  */
 import FastDataView from 'fast-dataview';
-// import {TextEncoder, TextDecoder} from 'text-encoding';
-import {TextEncoder, TextDecoder} from 'text-encoding-utf-8';
-import {parse as parseColor, stringify as stringifyColor} from './util/color';
+// import {TextEncoder} from 'text-encoding';
+import {TextEncoder} from 'text-encoding-utf-8';
+import {parse as parseColor} from './util/color';
 
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder();
 
 const COMMAND_END = -1;
 
@@ -111,9 +110,5 @@ export default class DataPacker {
 
     get byteOffset() {
         return this._byteOffset;
-    }
-
-    unpack(type) {
-
     }
 }

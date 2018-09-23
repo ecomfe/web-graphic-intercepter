@@ -32,6 +32,16 @@
                 this._cube.rotation.rotateY(app.frameTime / 1000);
             }
         });
+
+        const replay = wgi.createWebGLReplay();
+        setInterval(function () {
+            const buffers = recorder.commit();
+            replay.setBuffers(buffers);
+            let command;
+            while (command = replay.readCommand()) {
+                console.log(command);
+            }
+        }, 100);
     </script>
 </body>
 </html>
