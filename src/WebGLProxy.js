@@ -66,7 +66,7 @@ webglSpec.methods.forEach(methodSpec => {
         if (retObjectType) {
             if (ret) {
                 ensureNativeObjectTypeInfo(ret, retObjectType.name);
-                ret.__wgiid__ = ret.count++;
+                ret.__wgiid__ = retObjectType.count++;
             }
         }
 

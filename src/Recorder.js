@@ -57,8 +57,6 @@ class Recorder {
     constructor() {
 
         this._commandPackers = [];
-        this._currentBufferView = null;
-
         this._createPacker();
 
         this._recording = false;

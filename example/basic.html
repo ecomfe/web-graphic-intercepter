@@ -7,7 +7,19 @@
     <title>Basic Example</title>
 </head>
 <body>
+    <style>
+        #console {
+            position:absolute;
+            right:0;
+            top:0;
+            width:500px;
+            height:600px;
+            overflow-y: scroll;
+            font-size: 12px;
+        }
+    </style>
     <canvas width="400" height="400"></canvas>
+    <div id="console"></div>
     <script src="../dist/web-graphic-intercepter.js"></script>
     <script src="lib/claygl.min.js"></script>
 
@@ -20,6 +32,9 @@
         const {recorder} = wgi.intercept(canvas);
         recorder.start();
 
+        const replay = wgi.createWebGLReplay();
+        const consoleEl = document.getElementById('console');
+
         clay.application.create(canvas, {
             init(app) {
                 this._camera = app.createCamera([0, 2, 5], [0, 0, 0]);
@@ -30,18 +45,20 @@
             },
             loop(app) {
                 this._cube.rotation.rotateY(app.frameTime / 1000);
+
+                // Replay commands each frame.
+                const buffer = recorder.commit();
+                replay.setBuffer(buffer);
+                let command;
+                let str = '';
+                while (command = replay.readCommand()) {
+                    const argStr = command.args.map(arg => arg.value).join(',');
+                    str += `${command.name}(${argStr})<br />`
+                    console.log(command);
+                }
+                consoleEl.innerHTML = str;
             }
         });
-
-        const replay = wgi.createWebGLReplay();
-        setInterval(function () {
-            const buffer = recorder.commit();
-            replay.setBuffer(buffer);
-            let command;
-            while (command = replay.readCommand()) {
-                console.log(command);
-            }
-        }, 100);
     </script>
 </body>
 </html>
