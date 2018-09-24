@@ -54,6 +54,7 @@ webglSpec.methods.forEach(methodSpec => {
 
         const start = performance.now();
         const ret = ctx[methodSpec.name].apply(ctx, args);
+        // TODO performance now is not so high resolution
         let execTime = performance.now() - start;
 
         // Ignore getter commands

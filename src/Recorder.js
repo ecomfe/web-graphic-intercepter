@@ -56,7 +56,7 @@ class Recorder {
 
     constructor() {
 
-        this._commandsBuffers = [];
+        this._commandPackers = [];
         this._currentBufferView = null;
 
         this._createPacker();
@@ -109,7 +109,7 @@ class Recorder {
         if (!this._recording) {
             return;
         }
-        const packer = this._curentDataPacker;
+        const packer = this._currentPacker;
 
         const startByteOffset = packer.byteOffset;
         let endByteOffset = startByteOffset;
@@ -145,7 +145,6 @@ class Recorder {
             }
         }
         if (endByteOffset < -1) {   // Not enough space. Create a new buffer and repack the command.
-            this._curentDataPacker.end();
             this._createPacker();
             this.addCommand(commandName, args);
             return;
@@ -159,14 +158,29 @@ class Recorder {
     }
 
     commit() {
-        const commandBuffers = this._commandsBuffers;
-        this._commandsBuffers = [];
+        let bytes = 0;
+        this._commandPackers.forEach(packer => {
+            bytes += packer.byteLength;
+        });
+        const ret = new Uint8Array(bytes);
+        let byteOffset = 0;
+        for (let p = 0; p < this._commandPackers.length; p++) {
+            const packer = this._commandPackers[p];
+            const arr = new Uint8Array(packer.buffer);
+            // Not use arr.length because it's not full.
+            const byteLength = packer.byteLength;
+            for (let i = 0; i < byteLength; i++) {
+                ret[byteOffset++] = arr[i];
+            }
+        }
+
+        this._commandPackers = [];
         this._createPacker();
-        return commandBuffers;
+        return ret.buffer;
     }
 
     addShot() {
-
+        // Shot Index, bytes
     }
 
     _getCommandSpec(commandName, args) {
@@ -186,8 +200,8 @@ class Recorder {
 
     _createPacker() {
         const buffer = new ArrayBuffer(COMMAND_BUFFER_SIZE);
-        this._commandsBuffers.push(buffer);
-        this._curentDataPacker = new DataPacker(buffer);
+        this._currentPacker = new DataPacker(buffer);
+        this._commandPackers.push(this._currentPacker);
 
         this._byteOffset = 0;
     }

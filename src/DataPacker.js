@@ -99,9 +99,8 @@ export default class DataPacker {
         return byteOffset;
     }
 
-    end() {
-        this._view.setInt16(this._byteOffset, COMMAND_END);
-        this._byteOffset += 2;
+    get buffer() {
+        return this._buffer;
     }
 
     get dataView() {
@@ -109,6 +108,11 @@ export default class DataPacker {
     }
 
     get byteOffset() {
+        return this._byteOffset;
+    }
+
+    get byteLength() {
+        // Use byteOffset
         return this._byteOffset;
     }
 }

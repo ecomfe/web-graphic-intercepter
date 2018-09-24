@@ -8,27 +8,21 @@ class Replay {
         }, {});
     }
 
-    setBuffers(buffers) {
-        this._buffers = buffers;
-        this._bufferIdx = -1;
-        this._nextBuffer();
+    setBuffer(buffer) {
+        this._buffer = buffer;
+        this._unpacker = new DataUnpacker(buffer);
     }
 
     readCommand() {
-        if (!this._currentUnpacker) {
+        const unpacker = this._unpacker;
+        const startByteOffset = unpacker.byteOffset;
+        const commandId = unpacker.unpack('short');
+        if (commandId == null || commandId <= 0) {  // ID starts from 1.
             return;
         }
-
-        const packer = this._currentUnpacker;
-        const startByteOffset = packer.byteOffset;
-        const commandId = packer.unpack('short');
-        if (commandId == null || commandId <= 0) {  // ID starts from 1.
-            this._nextBuffer();
-            return this.readCommand();
-        }
-        const argBytes = packer.unpack('short');
-        const timestamp = packer.unpack('float');
-        const cost = packer.unpack('float');
+        const argBytes = unpacker.unpack('short');
+        const timestamp = unpacker.unpack('float');
+        const cost = unpacker.unpack('float');
         const commandSpec = this._specMethodsMap[commandId];
 
         const args = [];
@@ -37,12 +31,12 @@ class Replay {
             const argSpec = commandSpec.args[i];
             if (argSpec.packType) {
                 args[i] = {
-                    value: packer.unpack(argSpec.packType),
+                    value: unpacker.unpack(argSpec.packType),
                     type: argSpec.idlType
                 };
             }
             else {  // WebGL/Context2D Object type
-                const val = packer.unpack('int');
+                const val = unpacker.unpack('int');
                 args[i] = {
                     value: val === -1 ? null : val,
                     type: argSpec.idlType
@@ -50,7 +44,7 @@ class Replay {
             }
         }
 
-        packer.byteOffset = startByteOffset + argBytes + 12;
+        unpacker.byteOffset = startByteOffset + argBytes + 12;
 
         return {
             name: commandSpec.name,
@@ -58,17 +52,6 @@ class Replay {
             cost,
             args
         };
-    }
-
-    _nextBuffer() {
-        const buffers = this._buffers;
-        this._bufferIdx++;
-        if (buffers[this._bufferIdx]) {
-            this._currentUnpacker = new DataUnpacker(buffers[this._bufferIdx]);
-        }
-        else {
-            this._currentUnpacker = null;
-        }
     }
 }
 

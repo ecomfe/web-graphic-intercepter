@@ -54,7 +54,7 @@ export default class DataUnpacker {
                 byteOffset += 1;
                 break;
             case 'bool':
-                val = view.getUint8(byteOffset);
+                val = !!view.getUint8(byteOffset);
                 byteOffset += 1;
                 break;
             case 'float[]':

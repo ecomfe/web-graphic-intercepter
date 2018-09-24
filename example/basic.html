@@ -35,8 +35,8 @@
 
         const replay = wgi.createWebGLReplay();
         setInterval(function () {
-            const buffers = recorder.commit();
-            replay.setBuffers(buffers);
+            const buffer = recorder.commit();
+            replay.setBuffer(buffer);
             let command;
             while (command = replay.readCommand()) {
                 console.log(command);
