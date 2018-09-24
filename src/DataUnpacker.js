@@ -58,7 +58,7 @@ export default class DataUnpacker {
                 byteOffset += 1;
                 break;
             case 'float[]':
-                const len = view.getUint32(byteOffset.length);
+                const len = view.getUint32(byteOffset);
                 val = new Float32Array(len / 4);
                 byteOffset += 4;
                 for (let i = 0; i < len / 4; i++) {
