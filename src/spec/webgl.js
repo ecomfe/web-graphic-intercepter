@@ -712,6 +712,7 @@
     {
       "id": 23,
       "name": "clear",
+      "drawCall": true,
       "args": [
         {
           "name": "mask",
@@ -1235,6 +1236,7 @@
     {
       "id": 52,
       "name": "drawArrays",
+      "drawCall": true,
       "args": [
         {
           "name": "mode",
@@ -1259,6 +1261,7 @@
     {
       "id": 53,
       "name": "drawElements",
+      "drawCall": true,
       "args": [
         {
           "name": "mode",

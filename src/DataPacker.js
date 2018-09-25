@@ -87,6 +87,8 @@ export default class DataPacker {
                 view.setUint8(byteOffset++, colorArr[2]);
                 view.setUint8(byteOffset++, colorArr[3]);
                 break;
+            default:
+                throw new Error('Unkown type ' + type);
         }
 
         // Not enough space.
@@ -105,6 +107,10 @@ export default class DataPacker {
 
     get dataView() {
         return this._view;
+    }
+
+    set byteOffset(val) {
+        this._byteOffset = val;
     }
 
     get byteOffset() {

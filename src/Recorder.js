@@ -4,6 +4,8 @@
 
 import DataPacker from './DataPacker';
 import {getNativeObjectTypeInfo, getNativeObjectTypeInfoOfName} from './nativeObjectTypeInfo';
+import FastDataView from 'fast-dataview';
+// import {MASK_BITS} from './spec/mask';
 
 const COMMAND_BUFFER_SIZE = 1e5;
 
@@ -52,14 +54,43 @@ function compareArgTypes(argsSpec, args) {
     return true;
 }
 
+function downsamplePixels(pixels, width, height) {
+    const downsampledWidth = 100;
+    const downsampledScale = width / downsampledWidth;
+    const downsampledHeight = Math.round(height / downsampledScale);
+    const downsampledPixels = new pixels.constructor(downsampledWidth * downsampledHeight * 4);
+    let off = 0;
+    for (let y = 0; y < downsampledHeight; y++) {
+        for (let x = 0; x < downsampledWidth; x++) {
+            // Nearest sampling
+            const idx2 = (Math.floor(y * downsampledScale) * width
+                + Math.floor(x * downsampledScale)) * 4;
+
+            downsampledPixels[off++] = pixels[idx2];
+            downsampledPixels[off++] = pixels[idx2 + 1];
+            downsampledPixels[off++] = pixels[idx2 + 2];
+            downsampledPixels[off++] = pixels[idx2 + 3];
+        }
+    }
+
+    return {
+        pixels: downsampledPixels,
+        width: downsampledWidth,
+        height: downsampledHeight
+    };
+}
+
 class Recorder {
 
     constructor() {
 
         this._commandPackers = [];
+        this._snapshots = [];
+
         this._createPacker();
 
         this._recording = false;
+        this._snapshotByteOffset = 0;
     }
 
     // Init recorder in WebGLProxy or Context2DProxy.
@@ -85,16 +116,32 @@ class Recorder {
     /**
      * Start recording
      */
-    start() {
+    start({
+        snapshot
+    }) {
+        if (this._recording) {
+            return;
+        }
+
+        this._snapshot = snapshot || false;
+
         this._recording = true;
         // PENDING Performance implementation?
         this._startTime = performance.now();
     }
+
     /**
-     * Stop recording
+     * If take snapshot
+     */
+    shouldTakeSnapshot() {
+        return this._snapshot && this._recording;
+    }
+    /**
+     * Stop recording and commit
      */
     stop() {
         this._recording = false;
+        return this.commit();
     }
 
     /**
@@ -103,7 +150,7 @@ class Recorder {
      * @param {Array} args
      * @return byteOffset, -1 if buffer has no space.
      */
-    addCommand(commandName, args, execTime) {
+    addCommand(commandName, args, execTime, snapshot) {
         if (!this._recording) {
             return;
         }
@@ -119,7 +166,6 @@ class Recorder {
         endByteOffset = packer.pack('short', 0);
         endByteOffset = packer.pack('float', performance.now() - this._startTime);
         endByteOffset = packer.pack('float', execTime);
-
 
         for (let i = 0; i < args.length; i++) {
             const argSpec = commandSpec.args[i];
@@ -142,26 +188,63 @@ class Recorder {
                 }
             }
         }
+
+        const argBytes = endByteOffset - startByteOffset - 12;
+        if (snapshot) {
+            snapshot = downsamplePixels(snapshot.pixels, snapshot.width, snapshot.height);
+            endByteOffset = packer.pack('uint', this._snapshotByteOffset);
+            endByteOffset = packer.pack('uint', snapshot.pixels.byteLength);
+            endByteOffset = packer.pack('ushort', snapshot.width);
+            endByteOffset = packer.pack('ushort', snapshot.height);
+        }
+
         if (endByteOffset < -1) {   // Not enough space. Create a new buffer and repack the command.
+            packer.byteOffset = startByteOffset;    // Rollback
             this._createPacker();
-            this.addCommand(commandName, args);
+            this.addCommand(commandName, args, execTime, snapshot);
             return;
         }
 
+        if (snapshot) {
+            this._snapshotByteOffset += snapshot.pixels.byteLength;
+            this._snapshots.push(snapshot);
+        }
         // Arg bytes.
         // PENDING shader string too long?
-        packer.dataView.setUint16(
-            startByteOffset + 2, endByteOffset - startByteOffset - 12
-        );
+        packer.dataView.setUint16(startByteOffset + 2, argBytes);
     }
 
     commit() {
-        let bytes = 0;
+        let commandsBytes = 0;
+        let snapshotsBytes = 0;
+        let vertexDataBytes = 0;
+        let imageBytes = 0;
         this._commandPackers.forEach(packer => {
-            bytes += packer.byteLength;
+            commandsBytes += packer.byteLength;
         });
-        const ret = new Uint8Array(bytes);
-        let byteOffset = 0;
+        this._snapshots.forEach(snapshot => {
+            snapshotsBytes += snapshot.pixels.byteLength;
+        });
+        const ret = new Uint8Array(
+            36 + commandsBytes + snapshotsBytes + vertexDataBytes + imageBytes
+        );
+        let dataView = new FastDataView(ret.buffer);
+        // Header(36 bytes):
+        // masks(4 bytes)
+        // commands(8 bytes)
+        dataView.setUint32(4, 36);
+        dataView.setUint32(8, commandsBytes);
+        // snapshots(8 bytes)
+        dataView.setUint32(12, 36 + commandsBytes);
+        dataView.setUint32(16, snapshotsBytes);
+        // vertex data(8 bytes)
+        dataView.setUint32(20, 36 + commandsBytes + snapshotsBytes);
+        dataView.setUint32(24, vertexDataBytes);
+        // Image(8 bytes)
+        dataView.setUint32(28, 36 + commandsBytes + snapshotsBytes + vertexDataBytes);
+        dataView.setUint32(32, imageBytes);
+
+        let byteOffset = 36;
         for (let p = 0; p < this._commandPackers.length; p++) {
             const packer = this._commandPackers[p];
             const arr = new Uint8Array(packer.buffer);
@@ -172,13 +255,20 @@ class Recorder {
             }
         }
 
+        for (let p = 0; p < this._snapshots.length; p++) {
+            const snapshot = this._snapshots[p];
+            const arr = new Uint8Array(snapshot.pixels);
+            for (let i = 0; i < arr.length; i++) {
+                ret[byteOffset++] = arr[i];
+            }
+        }
+
         this._commandPackers = [];
         this._createPacker();
-        return ret.buffer;
-    }
+        this._snapshotByteOffset = 0;
+        this._snapshots = [];
 
-    addShot() {
-        // Shot Index, bytes
+        return ret.buffer;
     }
 
     _getCommandSpec(commandName, args) {
@@ -200,8 +290,6 @@ class Recorder {
         const buffer = new ArrayBuffer(COMMAND_BUFFER_SIZE);
         this._currentPacker = new DataPacker(buffer);
         this._commandPackers.push(this._currentPacker);
-
-        this._byteOffset = 0;
     }
 }
 

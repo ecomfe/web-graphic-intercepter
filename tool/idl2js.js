@@ -26,6 +26,12 @@ const glTypeDef = {
     'GLenum': 'int'
 };
 
+const webglDrawcalls = {
+    'clear': true,
+    'drawArrays': true,
+    'drawElements': true
+};
+
 
 function convertWebGLIDL(idlStr) {
     const idl = webidl.parse(idlStr);
@@ -47,6 +53,7 @@ function convertWebGLIDL(idlStr) {
                     methods.push({
                         id: idStart++,
                         name: funcName,
+                        drawCall: webglDrawcalls[funcName],
                         args: args.map(arg => {
                             let type = arg.idlType.idlType;
                             if (type instanceof Array) {

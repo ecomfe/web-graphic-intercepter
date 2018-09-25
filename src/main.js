@@ -17,6 +17,12 @@ export function intercept(canvas) {
 
     const nativeGetContext = canvas.getContext;
     canvas.getContext = function (...args) {
+        args[1] = args[1] || {};
+        if (args[0] === 'webgl' || args[0] === 'experimental-webgl') {
+            args[1] = Object.assign({}, args[1]);
+            // For snapshot
+            args[1].preserveDrawingBuffer = true;
+        }
         const ctx = nativeGetContext.apply(this, args);
 
         // is webgl
