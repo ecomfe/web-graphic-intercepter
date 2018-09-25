@@ -55,7 +55,7 @@ export function init({
     if (!createVideo) {
         console.warn('Missing video constructor info.');
     }
-    createImage && ensureNativeObjectTypeInfo(createImage(), 'HTMLCanvasElement');
+    createImage && ensureNativeObjectTypeInfo(createImage(), 'HTMLImageElement');
     createVideo && ensureNativeObjectTypeInfo(createVideo(), 'HTMLVideoElement');
 }
 
@@ -68,7 +68,7 @@ export function create2DReplay() {
 }
 
 export function DEFAULT_CREATE_IMAGE() {
-    return document.createElement('image');
+    return new Image();
 }
 export function DEFAULT_CREATE_VIDEO() {
     return document.createElement('video');

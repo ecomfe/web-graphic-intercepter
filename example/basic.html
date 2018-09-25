@@ -41,7 +41,7 @@
                 app.renderer.clearColor = [0, 0, 1, 1];
                 this._camera = app.createCamera([0, 2, 5], [0, 0, 0]);
                 this._cube = app.createCube({
-                    color: '#f00'
+                    diffuseMap: './asset/crate.gif'
                 });
                 this._mainLight = app.createDirectionalLight([-1, -1, -1]);
             },
