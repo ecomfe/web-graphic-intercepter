@@ -7,6 +7,11 @@ class Replay {
             obj[methodSpec.id] = methodSpec;
             return obj;
         }, {});
+
+        this._enumsMap = {};
+        for (let key in spec.enums) {
+            this._enumsMap[spec.enums[key]] = key;
+        }
     }
 
     setBuffer(buffer) {
@@ -16,12 +21,12 @@ class Replay {
         const commandsBuffer = buffer.slice(
             dataView.getUint32(4), dataView.getUint32(4) + dataView.getUint32(8)
         );
-        const vertexDataBuffer = buffer.slice(
-            dataView.getUint32(20), dataView.getUint32(20) + dataView.getUint32(24)
-        );
-        const imageDataBuffer = buffer.slice(
-            dataView.getUint32(28), dataView.getUint32(28) + dataView.getUint32(32)
-        );
+        // const vertexDataBuffer = buffer.slice(
+        //     dataView.getUint32(20), dataView.getUint32(20) + dataView.getUint32(24)
+        // );
+        // const imageDataBuffer = buffer.slice(
+        //     dataView.getUint32(28), dataView.getUint32(28) + dataView.getUint32(32)
+        // );
 
         this._snapshotByteOffset = dataView.getUint32(12);
         this._snapshotByteLength = dataView.getUint32(16);
@@ -29,7 +34,7 @@ class Replay {
         this._commandUnpacker = new DataUnpacker(commandsBuffer);
     }
 
-    readCommand() {
+    readCommand(convertToString = false) {
         const unpacker = this._commandUnpacker;
         const startByteOffset = unpacker.byteOffset;
         const commandId = unpacker.unpack('short');
@@ -46,8 +51,9 @@ class Replay {
         for (let i = 0; i < commandSpec.args.length; i++) {
             const argSpec = commandSpec.args[i];
             if (argSpec.packType) {
+                const val = unpacker.unpack(argSpec.packType);
                 args[i] = {
-                    value: unpacker.unpack(argSpec.packType),
+                    value: val,
                     type: argSpec.idlType
                 };
             }
@@ -57,6 +63,26 @@ class Replay {
                     value: val === -1 ? null : val,
                     type: argSpec.idlType
                 };
+            }
+            if (convertToString) {
+                if (args[i].value != null) {
+                    const val = args[i].value;
+                    if (argSpec.idlType === 'GLenum') {
+                        args[i].string = this._enumsMap[val];
+                    }
+                    else {
+                        if (argSpec.packType) {
+                            args[i].string = val.toString();
+                        }
+                        else {
+                            // WebGL/Context2D Object type
+                            args[i].string = argSpec.idlType + '<' + val + '>';
+                        }
+                    }
+                }
+                else {
+                    args[i].string = 'null';
+                }
             }
         }
         // Avoid inconsistent in args parsing

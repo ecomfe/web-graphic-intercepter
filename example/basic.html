@@ -65,8 +65,8 @@
             let command;
             let str = '';
             let snapshot;
-            while (command = replay.readCommand()) {
-                const argStr = command.args.map(arg => arg.value).join(',');
+            while (command = replay.readCommand(true)) {
+                const argStr = command.args.map(arg => arg.string).join(', ');
                 str += `${command.name}(${argStr})<br />`
 
                 snapshot = command.snapshot;
